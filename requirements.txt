@@ -1,0 +1,12 @@
+pyodbc
+fastapi
+uvicorn[standard]
+pydantic
+azure-identity
+python-dotenv
+sqlalchemy
+httpx
+pytest
+requests
+python-multipart
+email-validator
