@@ -70,8 +70,8 @@ class SubscriberTests(unittest.TestCase):
         response = client.post("/subscribers/add",
                                data={"email": "newguy@newmail.com",
                                      "postcodes": [
-                                         "G769DQ",
-                                         "BT97FX"
+                                         "BA17RZ",
+                                         "B11QH"
                                      ]})
         assert response.status_code == HTTPStatus.CREATED
 
@@ -98,6 +98,31 @@ class SubscriberTests(unittest.TestCase):
                                      }
                                )
         assert response.status_code == HTTPStatus.NOT_ACCEPTABLE
+
+
+    def test_add_subscriber_non_valid_postcode_area(self):
+        response = client.post("/subscribers/add",
+                               data={"email": "postcode@notinrange.com",
+                                     "postcodes": [
+                                         "G769DQ",
+                                         "BT97FX"
+                                     ]
+                                     }
+                               )
+        assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+    def test_add_subscriber_non_valid_postcode(self):
+        response = client.post("/subscribers/add",
+                               data={"email": "postcode@notinrange.com",
+                                     "postcodes": [
+                                         "BA1III",
+                                         "B1III"
+                                     ]
+                                     }
+                               )
+        assert response.status_code == HTTPStatus.NO_CONTENT
+
 
 if __name__ == "__main__":
     unittest.main()
