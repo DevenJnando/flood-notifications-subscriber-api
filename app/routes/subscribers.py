@@ -21,7 +21,7 @@ async def handle_get_all_subscribers(session: Annotated[sessionmaker, Depends(ge
 @router.post("/subscribers/add", status_code=HTTPStatus.CREATED.value)
 async def handle_add_subscriber(session: Annotated[sessionmaker, Depends(get_session)],
                                 subscriber_form: Annotated[SubscriberForm, Form()]):
-    add_new_subscriber(session, subscriber_form)
+    await add_new_subscriber(session, subscriber_form)
 
 
 @router.get("/subscribers/get/id/{subscriber_id}")

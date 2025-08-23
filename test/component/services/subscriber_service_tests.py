@@ -1,4 +1,5 @@
 import unittest
+from unittest.async_case import IsolatedAsyncioTestCase
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -24,7 +25,7 @@ def get_session() -> sessionmaker:
     return session
 
 
-class SubscriberTests(unittest.TestCase):
+class SubscriberTests(IsolatedAsyncioTestCase):
 
 
     @classmethod
@@ -92,39 +93,52 @@ class SubscriberTests(unittest.TestCase):
         assert len(list_of_subscribers) == 0
 
 
-    def test_add_new_subscriber(self):
+    async def test_add_new_subscriber(self):
         email = "newguy@newmail.com"
         subscriber_form = SubscriberForm(email=email,
                                      postcodes=[
-                                         "G769DQ",
-                                         "BT97FX"
+                                         "BA17RZ",
+                                         "B11QH"
                                      ])
-        add_new_subscriber(session=session, subscriber_form=subscriber_form)
+        await add_new_subscriber(session=session, subscriber_form=subscriber_form)
         new_subscriber = get_subscriber_by_email(session=session, subscriber_email=email)
         assert new_subscriber.email == email
 
 
-    def test_add_existing_subscriber(self):
+    async def test_add_existing_subscriber(self):
         email = "petergriffin@test123.com"
         subscriber_form = SubscriberForm(email=email,
                                          postcodes=[
                                              "G769DQ",
                                              "BT97FX"
                                          ])
-        self.assertRaises(HTTPException, lambda: add_new_subscriber(session=session, subscriber_form=subscriber_form))
+        with self.assertRaises(HTTPException):
+            await add_new_subscriber(session=session, subscriber_form=subscriber_form)
 
 
-    def test_add_subscriber_non_valid_email(self):
+    async def test_add_subscriber_non_valid_email(self):
         email = "<script> "\
                 "console.log('doing naughty things') "\
                 "</script>"
 
         subscriber_form = SubscriberForm(email=email,
                                          postcodes=[
+                                             "BA17RZ",
+                                             "B11QH"
+                                         ])
+        with self.assertRaises(HTTPException):
+            await add_new_subscriber(session=session, subscriber_form=subscriber_form)
+
+
+    async def test_add_subscriber_non_valid_postcode(self):
+        email = "postcode@notinrange.com"
+        subscriber_form = SubscriberForm(email=email,
+                                         postcodes=[
                                              "G769DQ",
                                              "BT97FX"
                                          ])
-        self.assertRaises(HTTPException, lambda: add_new_subscriber(session=session, subscriber_form=subscriber_form))
+        with self.assertRaises(HTTPException):
+            await add_new_subscriber(session=session, subscriber_form=subscriber_form)
 
 
 if __name__ == "__main__":

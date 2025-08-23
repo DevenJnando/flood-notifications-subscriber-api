@@ -1,7 +1,11 @@
 import os
 import unittest
+from http import HTTPStatus
+from unittest.async_case import IsolatedAsyncioTestCase
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
+from email_validator import ValidatedEmail, validate_email, EmailNotValidError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -26,7 +30,31 @@ def get_session() -> sessionmaker:
     return session
 
 
-class SubscriberTests(unittest.TestCase):
+def mock_add_subscriber(ses: sessionmaker, subscriber_form: SubscriberForm) -> None:
+    try:
+        with ses() as ses:
+            subscriber_email: ValidatedEmail = validate_email(subscriber_form.email, check_deliverability=False)
+            normalized_email: str = subscriber_email.normalized
+            exists: bool = ses.query(Subscriber).filter_by(email=normalized_email).scalar() is not None
+            if exists:
+                raise HTTPException(status_code=HTTPStatus.CONFLICT,
+                                    detail=f"Subscriber with given email {subscriber_email} already exists")
+            subscriber = Subscriber(email=normalized_email)
+            for postcode in subscriber_form.postcodes:
+                postcode = postcode.replace(" ", "")
+
+                # Postcode validator is deliberately ommitted.
+
+                postcode_object = Postcode(postcode=postcode)
+                subscriber.postcodes.append(postcode_object)
+            ses.add(subscriber)
+            ses.commit()
+    except EmailNotValidError:
+        raise HTTPException(status_code=HTTPStatus.NOT_ACCEPTABLE,
+                            detail=f"The entered email {subscriber_form.email} is invalid")
+
+
+class SubscriberTests(IsolatedAsyncioTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -107,29 +135,36 @@ class SubscriberTests(unittest.TestCase):
         assert len(list_of_subscribers) == 0
 
 
-    def test_add_new_subscriber(self):
+    @patch("app.services.subscriber_service.add_new_subscriber")
+    def test_add_new_subscriber(self, mock_add_new_subscriber):
+        mock_add_new_subscriber.side_effect = mock_add_subscriber
         email = "newguy@newmail.com"
         subscriber_form = SubscriberForm(email=email,
                                      postcodes=[
                                          "G769DQ",
                                          "BT97FX"
                                      ])
-        add_new_subscriber(session=session, subscriber_form=subscriber_form)
+        mock_add_subscriber(ses=session, subscriber_form=subscriber_form)
         new_subscriber = get_subscriber_by_email(session=session, subscriber_email=email)
         assert new_subscriber.email == email
 
 
-    def test_add_existing_subscriber(self):
+    @patch("app.services.subscriber_service.add_new_subscriber")
+    def test_add_existing_subscriber(self, mock_add_new_subscriber):
+        mock_add_new_subscriber.side_effect = mock_add_subscriber
         email = "petergriffin@test123.com"
         subscriber_form = SubscriberForm(email=email,
                                          postcodes=[
                                              "G769DQ",
                                              "BT97FX"
                                          ])
-        self.assertRaises(HTTPException, lambda: add_new_subscriber(session=session, subscriber_form=subscriber_form))
+        with self.assertRaises(HTTPException):
+            mock_add_subscriber(ses=session, subscriber_form=subscriber_form)
 
 
-    def test_add_subscriber_non_valid_email(self):
+    @patch("app.services.subscriber_service.add_new_subscriber")
+    def test_add_subscriber_non_valid_email(self, mock_add_new_subscriber):
+        mock_add_new_subscriber.side_effect = mock_add_subscriber
         email = "<script> "\
                 "console.log('doing naughty things') "\
                 "</script>"
@@ -139,7 +174,8 @@ class SubscriberTests(unittest.TestCase):
                                              "G769DQ",
                                              "BT97FX"
                                          ])
-        self.assertRaises(HTTPException, lambda: add_new_subscriber(session=session, subscriber_form=subscriber_form))
+        with self.assertRaises(HTTPException):
+            mock_add_subscriber(ses=session, subscriber_form=subscriber_form)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ from email_validator import validate_email, EmailNotValidError, ValidatedEmail
 
 from app.dbschema.schema import Subscriber, Postcode
 from app.models.pydantic_models.subscriber_form import SubscriberForm
-
+from app.postcodes.postcode_validator import validate_postcode
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def get_all_subscribers_by_postcodes(session: sessionmaker, postcodes: set[str])
     return subscribers_with_postcodes
 
 
-def add_new_subscriber(session: sessionmaker, subscriber_form: SubscriberForm) -> None:
+async def add_new_subscriber(session: sessionmaker, subscriber_form: SubscriberForm) -> None:
     try:
         with session() as session:
             subscriber_email: ValidatedEmail = validate_email(subscriber_form.email, check_deliverability=False)
@@ -85,14 +85,18 @@ def add_new_subscriber(session: sessionmaker, subscriber_form: SubscriberForm) -
                                     detail=f"Subscriber with given email {subscriber_email} already exists")
             subscriber = Subscriber(email=normalized_email)
             for postcode in subscriber_form.postcodes:
+                postcode = postcode.replace(" ", "")
+                postcode_is_valid = await validate_postcode(postcode)
+                if not postcode_is_valid:
+                    raise HTTPException(status_code=HTTPStatus.NO_CONTENT,
+                                        detail=f"Postcode {postcode} not located in given district.")
                 postcode_object = Postcode(postcode=postcode)
                 subscriber.postcodes.append(postcode_object)
             session.add(subscriber)
             session.commit()
     except EmailNotValidError:
         raise HTTPException(status_code=HTTPStatus.NOT_ACCEPTABLE,
-                            detail="The entered email {} is invalid".format(subscriber_form.email)
-                            )
+                            detail=f"The entered email {subscriber_form.email} is invalid")
 
 
 def delete_subscriber_by_id(session: sessionmaker, subscriber_id: UUID) -> None:
