@@ -97,8 +97,7 @@ class SubscriberTests(IsolatedAsyncioTestCase):
         email = "newguy@newmail.com"
         subscriber_form = SubscriberForm(email=email,
                                      postcodes=[
-                                         "BA17RZ",
-                                         "B11QH"
+                                         "LA220DY"
                                      ])
         await add_new_subscriber(session=session, subscriber_form=subscriber_form)
         new_subscriber = get_subscriber_by_email(session=session, subscriber_email=email)

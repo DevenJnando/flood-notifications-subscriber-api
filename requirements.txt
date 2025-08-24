@@ -7,10 +7,12 @@ azure-common
 azure-cosmos
 python-dotenv~=1.1.1
 sqlalchemy~=2.0.43
-httpx
+httpx~=0.28.1
 pytest
 requests
 aiohttp
 python-multipart
 email_validator~=2.2.0
 azure-core~=1.35.0
+starlette~=0.47.2
+email_validator~=2.2.0

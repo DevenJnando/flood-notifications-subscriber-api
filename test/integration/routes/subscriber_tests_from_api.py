@@ -70,8 +70,7 @@ class SubscriberTests(unittest.TestCase):
         response = client.post("/subscribers/add",
                                data={"email": "newguy@newmail.com",
                                      "postcodes": [
-                                         "BA17RZ",
-                                         "B11QH"
+                                         "LA220DY"
                                      ]})
         assert response.status_code == HTTPStatus.CREATED
 
