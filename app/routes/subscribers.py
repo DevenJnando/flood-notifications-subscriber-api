@@ -9,7 +9,9 @@ from app.models.pydantic_models.subscriber_form import SubscriberForm
 from app.connections.database_orm import get_session
 from app.services.subscriber_service import (get_all_subscribers,
                                              get_subscriber_by_id,
-                                             get_subscriber_by_email, add_new_subscriber)
+                                             get_subscriber_by_email,
+                                             add_new_subscriber,
+                                             delete_subscriber_by_id)
 
 router = APIRouter()
 
@@ -22,6 +24,12 @@ async def handle_get_all_subscribers(session: Annotated[sessionmaker, Depends(ge
 async def handle_add_subscriber(session: Annotated[sessionmaker, Depends(get_session)],
                                 subscriber_form: Annotated[SubscriberForm, Form()]):
     await add_new_subscriber(session, subscriber_form)
+
+
+@router.delete("/subscribers/delete/{subscriber_id}", status_code=HTTPStatus.NO_CONTENT.value)
+async def handle_delete_subscriber(session: Annotated[sessionmaker, Depends(get_session)],
+                                   subscriber_id: UUID):
+    return delete_subscriber_by_id(session, subscriber_id)
 
 
 @router.get("/subscribers/get/id/{subscriber_id}")
