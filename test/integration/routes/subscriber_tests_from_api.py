@@ -22,7 +22,7 @@ class SubscriberTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        delete_subscriber_by_email(session=session, subscriber_email="newguy@newmail.com")
+        delete_subscriber_by_email(session_maker=session, subscriber_email="newguy@newmail.com")
 
 
     def test_get_all_subscribers(self):
