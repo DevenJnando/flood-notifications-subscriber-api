@@ -1,4 +1,3 @@
-import logging
 import time
 from http import HTTPStatus
 from uuid import UUID
@@ -13,14 +12,19 @@ from sqlalchemy.orm.scoping import scoped_session
 from app.dbschema.schema import Subscriber, Postcode
 from app.models.pydantic_models.subscriber_form import SubscriberForm
 from app.postcodes.postcode_validator import validate_postcode
+from app.logging.log import get_logger
 
 
 ATTEMPT_LIMIT = 5
 
-logger = logging.getLogger(__name__)
-
 
 def get_all_subscribers(session_maker: sessionmaker) -> list[Subscriber | None]:
+    """
+    Fetches all subscribers from the database.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :return: List of all subscribers
+    """
     subscribers: list[Subscriber] = []
     subscriber_objects: list[Subscriber] = []
     attempt_number = 0
@@ -37,17 +41,26 @@ def get_all_subscribers(session_maker: sessionmaker) -> list[Subscriber | None]:
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def get_subscriber_by_id(session_maker: sessionmaker, subscriber_id: UUID) -> Subscriber | None:
+    """
+    Fetches a subscriber from the database by ID.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param subscriber_id: Subscriber ID
+    :return: Subscriber or None
+    """
+
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
         try:
@@ -55,23 +68,33 @@ def get_subscriber_by_id(session_maker: sessionmaker, subscriber_id: UUID) -> Su
             with Session() as session:
                 subscriber: Subscriber | None = session.get(Subscriber, subscriber_id)
                 if subscriber is None:
+                    get_logger().error(HTTPStatus.NOT_FOUND)
+                    get_logger().error(f"Bad Request: {subscriber_id} not found")
                     raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                         detail=f"Subscriber with given id {subscriber_id} not found")
                 return subscriber
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def get_subscriber_by_email(session_maker: sessionmaker, subscriber_email: str) -> Subscriber | None:
+    """
+    Fetches a subscriber from the database by email.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param subscriber_email: Subscriber email
+    :return: Subscriber or None
+    """
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
         try:
@@ -79,23 +102,33 @@ def get_subscriber_by_email(session_maker: sessionmaker, subscriber_email: str) 
             with Session() as session:
                 subscriber: Subscriber | None = session.query(Subscriber).filter_by(email=subscriber_email).scalar()
                 if subscriber is None:
+                    get_logger().error(HTTPStatus.NOT_FOUND)
+                    get_logger().error(f"Bad Request: {subscriber_email} not found")
                     raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                         detail=f"Subscriber with given email {subscriber_email} not found")
                 return subscriber
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def get_subscribers_by_postcode(session_maker: sessionmaker, postcode: str) -> list[Subscriber] | None:
+    """
+    Fetches a list of subscribers from the database by postcode.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param postcode: Postcode
+    :return: List of subscribers or None
+    """
     subscribers_with_postcode: list[Subscriber] = []
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
@@ -109,23 +142,33 @@ def get_subscribers_by_postcode(session_maker: sessionmaker, postcode: str) -> l
                 for result in session.execute(statement):
                     subscribers_with_postcode.append(result.Subscriber)
             if len(subscribers_with_postcode) == 0:
+                get_logger().error(HTTPStatus.NOT_FOUND)
+                get_logger().error(f"Bad Request: {postcode} not found")
                 raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                     detail=f"No subscribers with postcode {postcode} found in database.")
             return subscribers_with_postcode
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def get_all_subscribers_by_postcodes(session_maker: sessionmaker, postcodes: set[str]) -> list[Subscriber | None]:
+    """
+    Fetches a list of subscribers from the database by a set of postcodes.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param postcodes: Postcodes set
+    :return: List of subscribers or None
+    """
     subscribers_with_postcodes: list[Subscriber] = []
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
@@ -139,26 +182,38 @@ def get_all_subscribers_by_postcodes(session_maker: sessionmaker, postcodes: set
                 for result in session.execute(statement):
                     subscribers_with_postcodes.append(result.Subscriber)
             if len(subscribers_with_postcodes) == 0:
-                logger.warning(f"No subscribers with postcodes {postcodes} found in database.")
+                get_logger().warning(f"No subscribers with postcodes {postcodes} found in database.")
             return subscribers_with_postcodes
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: SubscriberForm) -> None:
+    """
+    Adds a new subscriber to the database.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param subscriber_form: SubscriberForm object
+    :return:
+    :throws: HTTPException if form is invalid, if the postcode(s) aren't covered, or if the subscriber already exists
+    """
+
     attempt_number = 0
     try:
         subscriber_email: ValidatedEmail = validate_email(subscriber_form.email, check_deliverability=False)
     except EmailNotValidError:
+        get_logger().error(HTTPStatus.NOT_ACCEPTABLE)
+        get_logger().error(f"Bad Request: {subscriber_form.email} is invalid")
         raise HTTPException(status_code=HTTPStatus.NOT_ACCEPTABLE,
                             detail=f"The entered email {subscriber_form.email} is invalid")
     while attempt_number < ATTEMPT_LIMIT:
@@ -169,6 +224,8 @@ async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: Subsc
                 exists: bool = session.query(Subscriber).filter_by(email=normalized_email).scalar() is not None
                 print(exists)
                 if exists:
+                    get_logger().error(HTTPStatus.CONFLICT)
+                    get_logger().error(f"Bad Request: {subscriber_email} is already registered")
                     raise HTTPException(status_code=HTTPStatus.CONFLICT,
                                         detail=f"Subscriber with given email {subscriber_email} already exists")
                 subscriber = Subscriber(email=normalized_email)
@@ -176,6 +233,8 @@ async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: Subsc
                     postcode = postcode.replace(" ", "")
                     postcode_is_valid = await validate_postcode(postcode)
                     if not postcode_is_valid:
+                        get_logger().error(HTTPStatus.NO_CONTENT)
+                        get_logger().error(f"Bad Request: {postcode} could not be found within its district.")
                         raise HTTPException(status_code=HTTPStatus.NO_CONTENT,
                                             detail=f"Postcode {postcode} not located in given district.")
                     postcode_object = Postcode(postcode=postcode)
@@ -187,17 +246,26 @@ async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: Subsc
             print(e)
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def delete_subscriber_by_id(session_maker: sessionmaker, subscriber_id: UUID) -> None:
+    """
+    Deletes a subscriber from the database by ID.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param subscriber_id: Subscriber ID
+    :return:
+    :throws: HTTPException if subscriber does not exist
+    """
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
         try:
@@ -205,6 +273,8 @@ def delete_subscriber_by_id(session_maker: sessionmaker, subscriber_id: UUID) ->
             with Session() as session:
                 subscriber: Subscriber | None = session.query(Subscriber).filter_by(id=subscriber_id).scalar()
                 if subscriber is None:
+                    get_logger().error(HTTPStatus.NOT_FOUND)
+                    get_logger().error(f"Bad Request: {subscriber_id} not found")
                     raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                         detail=f"Could not delete subscriber with id '{subscriber_id}' "
                                                f"because no such subscriber exists in the database.")
@@ -220,17 +290,26 @@ def delete_subscriber_by_id(session_maker: sessionmaker, subscriber_id: UUID) ->
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
 
 def delete_subscriber_by_email(session_maker: sessionmaker, subscriber_email: str) -> None:
+    """
+    Deletes a subscriber from the database by Email.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param subscriber_email: Subscriber email
+    :return:
+    :throws: HTTPException if subscriber does not exist
+    """
     attempt_number = 0
     while attempt_number < ATTEMPT_LIMIT:
         try:
@@ -238,6 +317,8 @@ def delete_subscriber_by_email(session_maker: sessionmaker, subscriber_email: st
             with Session() as session:
                 subscriber: Subscriber | None = session.query(Subscriber).filter_by(email=subscriber_email).scalar()
                 if subscriber is None:
+                    get_logger().error(HTTPStatus.NOT_FOUND)
+                    get_logger().error(f"Bad Request: {subscriber_email} not found")
                     raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                                         detail=f"Could not delete subscriber with email '{subscriber_email}' "
                                                f"because no such subscriber exists in the database.")
@@ -253,12 +334,13 @@ def delete_subscriber_by_email(session_maker: sessionmaker, subscriber_email: st
         except Exception as e:
             if type(e).__name__ == "HTTPException":
                 raise e
-            logger.error(f"Failed to access database. Retrying...\n"
+            get_logger().error(f"Failed to access database. Retrying...\n"
                          f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
                          f"{e}")
             attempt_number += 1
             time.sleep(5)
-    logger.error("Attempt limit reached.")
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
     raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail="Failed to retrieve subscribers from database...")
 
