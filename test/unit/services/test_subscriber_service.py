@@ -15,7 +15,7 @@ from app.services.subscriber_service import (get_all_subscribers,
                                              get_subscriber_by_id,
                                              get_subscriber_by_email,
                                              get_subscribers_by_postcode,
-                                             add_new_subscriber, get_all_subscribers_by_postcodes
+                                             get_all_subscribers_by_postcodes
                                              )
 from app.models.pydantic_models.subscriber_form import SubscriberForm
 
@@ -74,7 +74,7 @@ class SubscriberTests(IsolatedAsyncioTestCase):
 
 
     def test_get_all_subscribers(self):
-        subscribers = get_all_subscribers(session=session)
+        subscribers = get_all_subscribers(session_maker=session)
         assert len(subscribers) == 3 or len(subscribers) == 4
 
 
@@ -84,13 +84,13 @@ class SubscriberTests(IsolatedAsyncioTestCase):
             query = select("*").where(Subscriber.email == "test@test123.com")
             results = current_session.execute(query).all()
             correct_id = UUID(results[0].id)
-        subscriber = get_subscriber_by_id(session=session, subscriber_id=correct_id)
+        subscriber = get_subscriber_by_id(session_maker=session, subscriber_id=correct_id)
         assert subscriber.id == correct_id
 
 
     def test_get_subscriber_by_id_does_not_exist(self):
         non_existent_id: UUID = uuid4()
-        self.assertRaises(HTTPException, lambda: get_subscriber_by_id(session=session, subscriber_id=non_existent_id))
+        self.assertRaises(HTTPException, lambda: get_subscriber_by_id(session_maker=session, subscriber_id=non_existent_id))
 
 
     def test_get_subscriber_by_email_exists(self):
@@ -99,18 +99,18 @@ class SubscriberTests(IsolatedAsyncioTestCase):
             query = select("*").where(Subscriber.email == "test@test123.com")
             results = current_session.execute(query).all()
             correct_email = results[0].email
-        subscriber = get_subscriber_by_email(session=session, subscriber_email=correct_email)
+        subscriber = get_subscriber_by_email(session_maker=session, subscriber_email=correct_email)
         assert subscriber.email == correct_email
 
 
     def test_get_subscriber_by_email_does_not_exist(self):
         non_existent_email: str = "itwasmadeup@byawriter.com"
-        self.assertRaises(HTTPException, lambda: get_subscriber_by_email(session=session, subscriber_email=non_existent_email))
+        self.assertRaises(HTTPException, lambda: get_subscriber_by_email(session_maker=session, subscriber_email=non_existent_email))
 
 
     def test_get_subscriber_by_postcode_exists(self):
         postcode = "G769DQ"
-        list_of_subscribers: list[Subscriber] = get_subscribers_by_postcode(session=session, postcode=postcode)
+        list_of_subscribers: list[Subscriber] = get_subscribers_by_postcode(session_maker=session, postcode=postcode)
         assert len(list_of_subscribers) == 1 or len(list_of_subscribers) == 2
         subscriber: Subscriber = list_of_subscribers[0]
         assert subscriber.email == "petergriffin@test123.com" or subscriber.email == "newguy@newmail.com"
@@ -118,12 +118,12 @@ class SubscriberTests(IsolatedAsyncioTestCase):
 
     def test_get_subscriber_by_postcode_does_not_exist(self):
         postcode = "DL91DY"
-        self.assertRaises(HTTPException, lambda: get_subscribers_by_postcode(session=session, postcode=postcode))
+        self.assertRaises(HTTPException, lambda: get_subscribers_by_postcode(session_maker=session, postcode=postcode))
 
 
     def test_get_subscribers_by_postcodes_exists(self):
         postcodes: set[str] = {"G769DQ", "BT97FX"}
-        list_of_subscribers: list[Subscriber] = get_all_subscribers_by_postcodes(session=session, postcodes=postcodes)
+        list_of_subscribers: list[Subscriber] = get_all_subscribers_by_postcodes(session_maker=session, postcodes=postcodes)
         assert len(list_of_subscribers) == 1 or len(list_of_subscribers) == 3
         for subscriber in list_of_subscribers:
             assert subscriber.email == "petergriffin@test123.com" or subscriber.email == "newguy@newmail.com"
@@ -131,7 +131,7 @@ class SubscriberTests(IsolatedAsyncioTestCase):
 
     def test_get_subscriber_by_postcodes_do_not_exist(self):
         postcode: set[str] = {"DL91DY", "LAY8TF"}
-        list_of_subscribers: list[Subscriber] = get_all_subscribers_by_postcodes(session=session, postcodes=postcode)
+        list_of_subscribers: list[Subscriber] = get_all_subscribers_by_postcodes(session_maker=session, postcodes=postcode)
         assert len(list_of_subscribers) == 0
 
 
@@ -145,7 +145,7 @@ class SubscriberTests(IsolatedAsyncioTestCase):
                                          "BT97FX"
                                      ])
         mock_add_subscriber(ses=session, subscriber_form=subscriber_form)
-        new_subscriber = get_subscriber_by_email(session=session, subscriber_email=email)
+        new_subscriber = get_subscriber_by_email(session_maker=session, subscriber_email=email)
         assert new_subscriber.email == email
 
 
