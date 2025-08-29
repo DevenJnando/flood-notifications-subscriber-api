@@ -15,4 +15,3 @@ python-multipart
 email_validator~=2.2.0
 azure-core~=1.35.0
 starlette~=0.47.2
-email_validator~=2.2.0

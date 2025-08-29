@@ -1,0 +1,39 @@
+[tool.poetry]
+packages = [
+    {include = "app"}
+]
+
+[project]
+name = "flood-services-api"
+version = "1.0.0"
+description = "Backend API for the flood services project. Uses the fastAPI framework."
+authors = [
+    {name = "James Devenport"}
+]
+license = {text = "GNU General Public License"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyodbc (>=5.2.0,<6.0.0)",
+    "fastapi (>=0.116.1,<0.117.0)",
+    "uvicorn[standard] (>=0.35.0,<0.36.0)",
+    "pydantic (>=2.11.7,<3.0.0)",
+    "azure-identity (>=1.24.0,<2.0.0)",
+    "azure-common (>=1.1.28,<2.0.0)",
+    "azure-cosmos (>=4.9.0,<5.0.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "sqlalchemy (>=2.0.43,<3.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "pytest (>=8.4.1,<9.0.0)",
+    "requests (>=2.32.5,<3.0.0)",
+    "aiohttp (>=3.12.15,<4.0.0)",
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "email-validator (>=2.3.0,<3.0.0)",
+    "azure-core (>=1.35.0,<2.0.0)",
+    "starlette (>=0.47.3,<0.48.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
