@@ -5,7 +5,7 @@ from typing import Any
 
 from azure.core.async_paging import AsyncItemPaged
 from azure.cosmos.aio import CosmosClient
-from azure.cosmos.exceptions import CosmosHttpResponseError, CosmosResourceNotFoundError
+from azure.cosmos.exceptions import CosmosHttpResponseError
 from fastapi import HTTPException
 
 from app.connections import cosmosdb_client

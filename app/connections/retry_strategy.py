@@ -25,8 +25,8 @@ class RetryingQuery(Query):
                     raise
                 if attempts <= self.__max_retry_count__:
                     sleep_for = 2 ** (attempts - 1)
-                    logging.error(f"/!\ Database connection error: retrying Strategy => sleeping for {sleep_for}s"
-                                  f" and will retry (attempt #{attempts} of {self.__max_retry_count__}) \n "
+                    logging.error(f"Database connection error: retrying Strategy => sleeping for {sleep_for}s "
+                                  f"and will retry (attempt #{attempts} of {self.__max_retry_count__}) \n "
                                   f"Detailed query impacted: {e}")
                     sleep(sleep_for)
                     continue
@@ -50,8 +50,8 @@ class RetryingQuery(Query):
                     raise
                 if attempts <= self.__max_retry_count__:
                     sleep_for = 2 ** (attempts - 1)
-                    logging.error(f"/!\ Database connection error: retrying Strategy => sleeping for {sleep_for}s"
-                                  f" and will retry (attempt #{attempts} of {self.__max_retry_count__}) \n "
+                    logging.error(f"Database connection error: retrying Strategy => sleeping for {sleep_for}s "
+                                  f"and will retry (attempt #{attempts} of {self.__max_retry_count__}) \n "
                                   f"Detailed query impacted: {e}")
                     sleep(sleep_for)
                     continue
