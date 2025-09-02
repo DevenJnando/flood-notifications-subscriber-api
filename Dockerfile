@@ -20,5 +20,5 @@ RUN apt-get install -y msodbcsql18
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 RUN az login --service-principal --username $SERVICE_PRINCIPAL_ID --password $SERVICE_PRINCIPAL_PASSWORD --tenant $SERVICE_PRINCIPAL_TENANT
 RUN pip install -r /requirements.txt
-EXPOSE 8000
-CMD ["python3", "-m", "uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8000"]
+EXPOSE 8001
+CMD ["python3", "-m", "uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8001"]
