@@ -30,6 +30,26 @@ def get_session() -> sessionmaker:
     return session
 
 
+def mock_add_postcodes_to_existing_subscriber(ses: sessionmaker, postcodes: list[str], email: str) -> None:
+    with ses() as ses:
+        subscriber: Subscriber = ses.query(Subscriber).filter_by(email=email).scalar()
+        if subscriber is None:
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                                detail=f"Failed to locate subscriber...")
+        for postcode in postcodes:
+            postcode = postcode.replace(" ", "")
+            exists = ses.query(Postcode).filter_by(postcode=postcode, subscriber_id=subscriber.id).scalar() is not None
+            # Postcode validator is deliberately ommitted
+            if exists:
+                raise HTTPException(status_code=HTTPStatus.NO_CONTENT,
+                                    detail=f"Postcode {postcode} not located in given district. \n"
+                                           f"(Hint: you may have entered the same postcode under this email twice!)")
+            postcode_object = Postcode(postcode=postcode)
+            postcode_object.subscriber = subscriber
+            ses.add(postcode_object)
+        ses.commit()
+
+
 def mock_add_subscriber(ses: sessionmaker, subscriber_form: SubscriberForm) -> None:
     try:
         with ses() as ses:
@@ -149,17 +169,39 @@ class SubscriberTests(IsolatedAsyncioTestCase):
         assert new_subscriber.email == email
 
 
-    @patch("app.services.subscriber_service.add_new_subscriber")
-    def test_add_existing_subscriber(self, mock_add_new_subscriber):
-        mock_add_new_subscriber.side_effect = mock_add_subscriber
+    def test_add_existing_subscriber_new_postcodes(self):
+        email = "petergriffin@test123.com"
+        subscriber_form = SubscriberForm(email=email,
+                                         postcodes=[
+                                             "SA37UH",
+                                             "TW103HH"
+                                         ])
+        mock_add_postcodes_to_existing_subscriber(session, subscriber_form.postcodes, subscriber_form.email)
+        with session() as ses:
+            updated_subscriber = ses.query(Subscriber).filter_by(email=subscriber_form.email).scalar()
+            updated_postcodes = ses.query(Postcode).filter_by(subscriber=updated_subscriber).all()
+            contains_first_new_postcode: bool = False
+            contains_second_new_postcode: bool = False
+            for updated_postcode in updated_postcodes:
+                if updated_postcode.postcode == "SA37UH":
+                    contains_first_new_postcode = True
+                if updated_postcode.postcode == "TW103HH":
+                    contains_second_new_postcode = True
+            assert contains_first_new_postcode
+            assert contains_second_new_postcode
+
+    def test_add_existing_subscriber_old_postcodes(self):
         email = "petergriffin@test123.com"
         subscriber_form = SubscriberForm(email=email,
                                          postcodes=[
                                              "G769DQ",
-                                             "BT97FX"
+                                             "P235PP"
                                          ])
-        with self.assertRaises(HTTPException):
-            mock_add_subscriber(ses=session, subscriber_form=subscriber_form)
+        self.assertRaises(HTTPException,
+                          lambda: mock_add_postcodes_to_existing_subscriber(ses=session,
+                                                                            postcodes=subscriber_form.postcodes,
+                                                                            email=subscriber_form.email)
+                          )
 
 
     @patch("app.services.subscriber_service.add_new_subscriber")

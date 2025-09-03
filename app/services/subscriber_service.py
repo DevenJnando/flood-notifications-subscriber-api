@@ -198,6 +198,60 @@ def get_all_subscribers_by_postcodes(session_maker: sessionmaker, postcodes: set
                         detail="Failed to retrieve subscribers from database...")
 
 
+async def add_postcodes_to_existing_subscriber(session_maker: sessionmaker, postcodes: list[str], email: str) -> None:
+    """
+    Adds postcodes to an existing subscriber.
+
+    :param session_maker: SQLAlchemy sessionmaker factory object
+    :param postcodes: list of postcodes to be entered
+    :param email: email address of the existing subscriber
+    :return:
+    """
+    attempt_number = 0
+    while attempt_number < ATTEMPT_LIMIT:
+        try:
+            Session = scoped_session(session_maker)
+            with Session() as session:
+                subscriber: Subscriber = session.query(Subscriber).filter_by(email=email).scalar()
+                print(subscriber)
+                if subscriber is None:
+                    get_logger().error(HTTPStatus.NOT_FOUND)
+                    get_logger().error(f"Bad Request: {email} not found")
+                    raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                                        detail=f"Failed to locate subscriber...")
+                postcodes_to_add: list[Postcode] = list()
+                for postcode in postcodes:
+                    postcode = postcode.replace(" ", "")
+                    exists = session.query(Postcode).filter_by(postcode=postcode, subscriber_id=subscriber.id).scalar() is not None
+                    postcode_is_valid = await validate_postcode(postcode)
+                    print("postcode is valid: ", postcode_is_valid)
+                    print("exists in database: ", exists)
+                    if not postcode_is_valid or exists:
+                        get_logger().error(HTTPStatus.NO_CONTENT)
+                        get_logger().error(f"Bad Request: {postcode} could not be found within its district.")
+                        raise HTTPException(status_code=HTTPStatus.NO_CONTENT,
+                                            detail=f"Postcode {postcode} not located in given district. \n"
+                                                   f"(Hint: you may have entered the same postcode under this email twice!)")
+                    postcode_object = Postcode(postcode=postcode)
+                    postcode_object.subscriber = subscriber
+                    postcodes_to_add.append(postcode_object)
+                session.add_all(postcodes_to_add)
+                session.commit()
+                return
+        except Exception as e:
+            if type(e).__name__ == "HTTPException":
+                raise e
+            get_logger().error(f"Failed to access database. Retrying...\n"
+                               f"(Attempt {attempt_number} of {ATTEMPT_LIMIT})\n"
+                               f"{e}")
+            attempt_number += 1
+            time.sleep(5)
+    get_logger().error(HTTPStatus.INTERNAL_SERVER_ERROR)
+    get_logger().error("Attempt limit reached.")
+    raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                        detail="Failed to retrieve subscribers from database...")
+
+
 async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: SubscriberForm) -> None:
     """
     Adds a new subscriber to the database.
@@ -207,6 +261,13 @@ async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: Subsc
     :return:
     :throws: HTTPException if form is invalid, if the postcode(s) aren't covered, or if the subscriber already exists
     """
+    if len(subscriber_form.postcodes) > 10:
+        get_logger().error(HTTPStatus.NOT_ACCEPTABLE)
+        get_logger().error(f"Bad Request: {len(subscriber_form.postcodes)} postcodes were entered. "
+                           f"Maximum number of postcodes is 10.")
+        raise HTTPException(status_code=HTTPStatus.NOT_ACCEPTABLE,
+                            detail=f"Bad Request: {len(subscriber_form.postcodes)} postcodes were entered. "
+                            f"Maximum number of postcodes is 10.")
 
     attempt_number = 0
     try:
@@ -222,12 +283,11 @@ async def add_new_subscriber(session_maker: sessionmaker, subscriber_form: Subsc
             with Session() as session:
                 normalized_email: str = subscriber_email.normalized
                 exists: bool = session.query(Subscriber).filter_by(email=normalized_email).scalar() is not None
-                print(exists)
                 if exists:
-                    get_logger().error(HTTPStatus.CONFLICT)
-                    get_logger().error(f"Bad Request: {subscriber_email} is already registered")
-                    raise HTTPException(status_code=HTTPStatus.CONFLICT,
-                                        detail=f"Subscriber with given email {subscriber_email} already exists")
+                    await add_postcodes_to_existing_subscriber(session_maker=session_maker,
+                                                               postcodes=subscriber_form.postcodes,
+                                                               email=normalized_email)
+                    return
                 subscriber = Subscriber(email=normalized_email)
                 for postcode in subscriber_form.postcodes:
                     postcode = postcode.replace(" ", "")

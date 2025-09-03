@@ -2,17 +2,18 @@ import unittest
 from unittest.async_case import IsolatedAsyncioTestCase
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import sessionmaker
 
-from app.dbschema.schema import Subscriber
+from app.dbschema.schema import Subscriber, Postcode
 from app.connections.database_orm import __get_az_mailing_list_engine, __get_sessionmaker
 from app.services.subscriber_service import (get_all_subscribers,
                                              get_subscriber_by_id,
                                              get_subscriber_by_email,
                                              get_subscribers_by_postcode,
                                              add_new_subscriber,
-                                             delete_subscriber_by_email, get_all_subscribers_by_postcodes
+                                             delete_subscriber_by_email, get_all_subscribers_by_postcodes,
+                                             add_postcodes_to_existing_subscriber
                                              )
 from app.models.pydantic_models.subscriber_form import SubscriberForm
 
@@ -31,6 +32,14 @@ class SubscriberTests(IsolatedAsyncioTestCase):
     @classmethod
     def tearDownClass(cls):
         delete_subscriber_by_email(session_maker=session, subscriber_email="newguy@newmail.com")
+        with session() as current_session:
+            statement1 = delete(Postcode).where(Postcode.postcode == "HU181QB",
+                                                Postcode.subscriber_id == "903d1687-cde0-411e-b97a-3a497f14e528")
+            statement2 = delete(Postcode).where(Postcode.postcode == "TQ139AW",
+                                                Postcode.subscriber_id == "903d1687-cde0-411e-b97a-3a497f14e528")
+            current_session.execute(statement1)
+            current_session.execute(statement2)
+            current_session.commit()
 
 
     def test_get_all_subscribers(self):
@@ -104,15 +113,41 @@ class SubscriberTests(IsolatedAsyncioTestCase):
         assert new_subscriber.email == email
 
 
-    async def test_add_existing_subscriber(self):
+    async def test_add_existing_subscriber_new_postcodes(self):
+        email = "petergriffin@test123.com"
+        subscriber_form = SubscriberForm(email=email,
+                                         postcodes=[
+                                             "HU181QB",
+                                             "TQ139AW"
+                                         ])
+        await add_postcodes_to_existing_subscriber(session_maker=session,
+                                                   postcodes=subscriber_form.postcodes,
+                                                   email=subscriber_form.email)
+        with session() as ses:
+            updated_subscriber = ses.query(Subscriber).filter_by(email=subscriber_form.email).scalar()
+            updated_postcodes = ses.query(Postcode).filter_by(subscriber=updated_subscriber).all()
+            contains_first_new_postcode: bool = False
+            contains_second_new_postcode: bool = False
+            for updated_postcode in updated_postcodes:
+                if updated_postcode.postcode == "HU181QB":
+                    contains_first_new_postcode = True
+                if updated_postcode.postcode == "TQ139AW":
+                    contains_second_new_postcode = True
+            assert contains_first_new_postcode
+            assert contains_second_new_postcode
+
+
+    async def test_add_existing_subscriber_old_postcodes(self):
         email = "petergriffin@test123.com"
         subscriber_form = SubscriberForm(email=email,
                                          postcodes=[
                                              "G769DQ",
-                                             "BT97FX"
+                                             "HU181QB"
                                          ])
         with self.assertRaises(HTTPException):
-            await add_new_subscriber(session_maker=session, subscriber_form=subscriber_form)
+            await add_postcodes_to_existing_subscriber(session_maker=session,
+                                                       postcodes=subscriber_form.postcodes,
+                                                       email=subscriber_form.email)
 
 
     async def test_add_subscriber_non_valid_email(self):

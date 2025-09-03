@@ -3,12 +3,12 @@ from http import HTTPStatus
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from app.connections.database_orm import (__get_az_mailing_list_engine,
                                           __get_sessionmaker)
 from app.main import app
-from app.dbschema.schema import Subscriber
+from app.dbschema.schema import Subscriber, Postcode
 from app.services.subscriber_service import delete_subscriber_by_email
 
 client = TestClient(app)
@@ -23,6 +23,14 @@ class SubscriberTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         delete_subscriber_by_email(session_maker=session, subscriber_email="newguy@newmail.com")
+        with session() as current_session:
+            statement1 = delete(Postcode).where(Postcode.postcode == "HU181QB",
+                                                Postcode.subscriber_id == "903d1687-cde0-411e-b97a-3a497f14e528")
+            statement2 = delete(Postcode).where(Postcode.postcode == "TQ139AW",
+                                                Postcode.subscriber_id == "903d1687-cde0-411e-b97a-3a497f14e528")
+            current_session.execute(statement1)
+            current_session.execute(statement2)
+            current_session.commit()
 
 
     def test_get_all_subscribers(self):
@@ -75,14 +83,24 @@ class SubscriberTests(unittest.TestCase):
         assert response.status_code == HTTPStatus.CREATED
 
 
-    def test_add_existing_subscriber(self):
+    def test_add_existing_subscriber_with_new_postcodes(self):
         response = client.post("/subscribers/add",
                                data={"email": "petergriffin@test123.com",
                                      "postcodes": [
-                                         "G769DQ",
-                                         "BT97FX"
+                                         "HU181QB",
+                                         "TQ139AW"
                                      ]})
-        assert response.status_code == HTTPStatus.CONFLICT
+        assert response.status_code == HTTPStatus.CREATED
+
+
+    def test_add_existing_subscriber_with_old_postcodes(self):
+        response = client.post("/subscribers/add",
+                               data={"email": "petergriffin@test123.com",
+                                     "postcodes": [
+                                         "HU181QB",
+                                         "TQ139AW"
+                                     ]})
+        assert response.status_code == HTTPStatus.NO_CONTENT
 
 
     def test_add_subscriber_non_valid_email(self):

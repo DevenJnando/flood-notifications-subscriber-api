@@ -15,7 +15,7 @@ from app.services.subscriber_service import (get_all_subscribers,
 
 router = APIRouter()
 
-@router.get("/subscribers/all")
+@router.get("/subscribers/all", include_in_schema=False)
 async def handle_get_all_subscribers(session: Annotated[sessionmaker, Depends(get_session)]):
     return get_all_subscribers(session)
 
