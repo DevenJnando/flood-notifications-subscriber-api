@@ -11,6 +11,7 @@ COPY ./test /test
 WORKDIR /app
 COPY ./app /app
 WORKDIR /
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 RUN apt-get update
 RUN echo msodbcsql18 msodbcsql/ACCEPT_EULA boolean true | debconf-set-selections
 RUN apt-get install -y msodbcsql18
