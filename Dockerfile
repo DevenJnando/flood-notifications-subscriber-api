@@ -11,9 +11,6 @@ COPY ./test /test
 WORKDIR /app
 COPY ./app /app
 WORKDIR /
-RUN curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb
-RUN dpkg -i packages-microsoft-prod.deb
-RUN rm packages-microsoft-prod.deb
 RUN apt-get update
 RUN echo msodbcsql18 msodbcsql/ACCEPT_EULA boolean true | debconf-set-selections
 RUN apt-get install -y msodbcsql18
